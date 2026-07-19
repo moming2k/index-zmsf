@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Situational Awareness LP - 13F Dashboard</title>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --panel-bg: rgba(31, 40, 51, 0.6);
+            --panel-border: rgba(69, 162, 158, 0.2);
+            --text-primary: #c5c6c7;
+            --text-secondary: #8c92ac;
+            --accent-cyan: #66fcf1;
+            --accent-teal: #45a29e;
+            --accent-purple: #9d4edd;
+            --accent-pink: #f72585;
+            --accent-red: #ef233c;
+            --accent-green: #06d6a0;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(102, 252, 241, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(157, 78, 221, 0.05), transparent 25%);
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(102, 252, 241, 0.1);
+            border-color: rgba(102, 252, 241, 0.4);
+        }
+
+        .dashboard-header {
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--panel-border);
+            background: rgba(11, 12, 16, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+        .dashboard-header p {
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .full-width { grid-column: 1 / -1; }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+            color: #fff;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 0.75rem;
+        }
+        .section-title i { color: var(--accent-cyan); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge.long { background: rgba(6, 214, 160, 0.15); color: var(--accent-green); border: 1px solid rgba(6, 214, 160, 0.3); }
+        .badge.short { background: rgba(239, 35, 60, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 35, 60, 0.3); }
+        .badge.calls { background: rgba(69, 162, 158, 0.15); color: var(--accent-teal); border: 1px solid rgba(69, 162, 158, 0.3); }
+        .badge.puts { background: rgba(247, 37, 133, 0.15); color: var(--accent-pink); border: 1px solid rgba(247, 37, 133, 0.3); }
+        .badge.equity { background: rgba(157, 78, 221, 0.15); color: var(--accent-purple); border: 1px solid rgba(157, 78, 221, 0.3); }
+
+        .quarter-btn {
+            background: transparent;
+            border: 1px solid var(--panel-border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: 500;
+        }
+        .quarter-btn:hover { background: rgba(102, 252, 241, 0.1); color: var(--accent-cyan); }
+        .quarter-btn.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); box-shadow: 0 0 15px rgba(102, 252, 241, 0.4); }
+        
+        .flex-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .holding-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .holding-item {
+            display: flex; justify-content: space-between; align-items: center; padding: 1rem;
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid transparent; transition: border-color 0.2s;
+        }
+        .holding-item:hover { border-color: var(--panel-border); background: rgba(255, 255, 255, 0.05); }
+        .holding-name { font-size: 1.1rem; font-weight: 600; color: #fff; }
+        .holding-thesis { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        @media (max-width: 768px) { .compare-grid { grid-template-columns: 1fr; } }
+        .compare-column h3 { margin-top: 0; color: #fff; border-bottom: 2px solid; padding-bottom: 0.5rem; }
+        .compare-column.longs h3 { border-color: var(--accent-green); }
+        .compare-column.shorts h3 { border-color: var(--accent-red); }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .kpi-card { text-align: center; padding: 1.5rem; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid var(--panel-border); }
+        .kpi-value { font-size: 2rem; font-weight: 700; color: var(--accent-cyan); margin: 0.5rem 0; }
+        .kpi-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+
+        .chart-container { position: relative; height: 350px; width: 100%; margin-top: 2rem; }
+        .chart-svg { width: 100%; height: 100%; overflow: visible; }
+        .chart-line { fill: none; stroke: var(--accent-cyan); stroke-width: 3; }
+        .chart-area { fill: url(#colorAum); }
+        .chart-point { fill: var(--bg-color); stroke: var(--accent-cyan); stroke-width: 2; transition: all 0.2s; cursor: pointer; }
+        .chart-point:hover { fill: var(--accent-cyan); r: 6; }
+        .chart-label { fill: var(--text-secondary); font-size: 12px; }
+        .chart-grid { stroke: var(--panel-border); stroke-dasharray: 4 4; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            padding: 2rem;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem; right: 1rem;
+            background: transparent; border: none; color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #fff; }
+        .gfinance-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid rgba(102, 252, 241, 0.3);
+            background: rgba(102, 252, 241, 0.07);
+            color: var(--accent-cyan);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .gfinance-link:hover {
+            background: rgba(102, 252, 241, 0.15);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(102, 252, 241, 0.2);
+        }
+        .gfinance-link svg { width: 11px; height: 11px; }
+        .stock-kpi {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0;
+        }
+        .stock-kpi .kpi-value { font-size: 1.5rem; margin: 0.25rem 0 0 0; }
+        .history-list {
+            margin-top: 1rem; padding-left: 1.25rem; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5;
+        }
+        .history-list li { margin-bottom: 0.5rem; }
+        
+        .info-icon {
+            cursor: pointer; color: var(--text-secondary); width: 18px; height: 18px; margin-left: 0.5rem; transition: color 0.2s;
+        }
+        .info-icon:hover { color: var(--accent-cyan); }
+
+        .text-green { color: var(--accent-green) !important; }
+        .text-red { color: var(--accent-red) !important; }
+
+        /* Price History Table */
+        .holdings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            min-width: 900px;
+        }
+        .holdings-table thead th {
+            padding: 0.6rem 0.85rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--panel-border);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            background: var(--bg-color);
+        }
+        .holdings-table thead th:first-child,
+        .holdings-table thead th:nth-child(2) { text-align: left; }
+        .holdings-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.15s;
+        }
+        .holdings-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .holdings-table td {
+            padding: 0.65rem 0.85rem;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .holdings-table td:first-child { text-align: left; font-weight: 700; color: #fff; font-size: 0.95rem; }
+        .holdings-table td:nth-child(2) { text-align: left; color: var(--text-secondary); font-size: 0.82rem; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+        .ph-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .ph-price { font-weight: 600; color: #fff; }
+        .ph-type { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px; padding: 1px 5px; border-radius: 4px; }
+        .ph-type.long  { background: rgba(6,214,160,0.15); color: var(--accent-green); }
+        .ph-type.short { background: rgba(239,35,60,0.15);  color: var(--accent-red); }
+        .ph-type.calls { background: rgba(69,162,158,0.15); color: var(--accent-teal); }
+        .ph-today { font-weight: 700; color: var(--accent-cyan); }
+        .ph-empty { color: rgba(255,255,255,0.15); }
+        .ph-change.pos { color: var(--accent-green); font-weight: 600; }
+        .ph-change.neg { color: var(--accent-red);   font-weight: 600; }
+
+        /* Allocation Section */
+        .alloc-layout { display: grid; grid-template-columns: 280px 1fr; gap: 2.5rem; align-items: start; }
+        @media (max-width: 900px) { .alloc-layout { grid-template-columns: 1fr; } }
+
+        /* Donut */
+        .donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
+        .donut-svg { width: 220px; height: 220px; }
+        .donut-legend { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .legend-pct { margin-left: auto; font-weight: 700; color: #fff; }
+
+        /* Bar chart */
+        .bar-section { display: flex; flex-direction: column; gap: 0.6rem; }
+        .bar-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.15rem; }
+        .bar-ticker { font-weight: 700; color: #fff; font-size: 0.9rem; }
+        .bar-val { font-size: 0.82rem; color: var(--text-secondary); }
+        .bar-track { height: 10px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+        .bar-item { padding: 0.35rem 0; }
+
+        /* Long/Short strip */
+        .ls-strip-wrap { margin-top: 1.8rem; }
+        .ls-strip-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.5rem; }
+        .ls-strip { height: 22px; border-radius: 99px; overflow: hidden; display: flex; }
+        .ls-long  { background: linear-gradient(90deg, #06d6a0, #45a29e); }
+        .ls-short { background: linear-gradient(90deg, #ef233c, #f72585); }
+        .ls-footer { display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-secondary); }
+
+        /* Call Chart */
+        .call-chart-legend { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-top: 1.2rem; }
+        .call-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
+        .call-legend-line { width: 28px; height: 3px; border-radius: 2px; }
+        .chart-toggle-row { display: flex; gap: 0.5rem; margin-bottom: 1.4rem; }
+        .chart-toggle { background: transparent; border: 1px solid var(--panel-border); color: var(--text-secondary);
+            padding: 0.35rem 0.9rem; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.82rem; transition: all 0.2s; }
+        .chart-toggle:hover { background: rgba(102,252,241,0.08); color: var(--accent-cyan); }
+        .chart-toggle.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
+
+        /* Top 3 Picks */
+        .picks-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        @media(max-width:900px){ .picks-grid { grid-template-columns:1fr; } }
+        .pick-card { border-radius: 14px; padding: 1.4rem 1.5rem; position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08); transition: transform 0.3s, box-shadow 0.3s; }
+        .pick-card:hover { transform: translateY(-4px); }
+        .pick-card.gold  { background: linear-gradient(135deg,rgba(255,193,7,0.08),rgba(255,193,7,0.02)); border-color:rgba(255,193,7,0.35); }
+        .pick-card.silver{ background: linear-gradient(135deg,rgba(102,252,241,0.07),rgba(102,252,241,0.02)); border-color:rgba(102,252,241,0.3); }
+        .pick-card.bronze{ background: linear-gradient(135deg,rgba(157,78,221,0.08),rgba(157,78,221,0.02)); border-color:rgba(157,78,221,0.3); }
+        .pick-rank { font-size: 2rem; font-weight: 900; opacity: 0.15; position: absolute; top:0.8rem; right:1rem; }
+        .pick-medal { font-size: 1.6rem; margin-bottom: 0.4rem; }
+        .pick-ticker { font-size: 1.6rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+        .pick-name { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.8rem; }
+        .pick-meta { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .pick-tag { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+        .pick-return { font-size: 1.3rem; font-weight: 800; margin-bottom: 0.3rem; }
+        .pick-entry  { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; }
+        .pick-score-bar { height: 5px; border-radius: 3px; margin-bottom: 1rem; }
+        .pick-thesis { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+        .pick-thesis li { font-size: 0.8rem; color: var(--text-secondary); padding-left: 1.1rem; position: relative; }
+        .pick-thesis li::before { content: '›'; position: absolute; left: 0; color: var(--accent-cyan); font-weight: 700; }
+
+        .score-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 2rem; }
+        .score-table th { text-align: left; padding: 0.5rem 0.7rem; color: var(--text-secondary);
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--panel-border); }
+        .score-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
+        .score-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .score-table tr.top3 td { background: rgba(102,252,241,0.04); }
+        .score-pill { display:inline-block; padding:1px 7px; border-radius:20px; font-size:0.7rem; font-weight:700; }
+        .score-stars { color: #ffc107; letter-spacing: -1px; }
+        .excl-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .excl-table th { text-align:left; padding:0.45rem 0.7rem; color:var(--text-secondary); font-size:0.72rem; text-transform:uppercase; border-bottom:1px solid var(--panel-border); }
+        .excl-table td { padding:0.45rem 0.7rem; border-bottom:1px solid rgba(255,255,255,0.03); }
+
+    </style>
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>Situational Awareness LP</h1>
+        <p>13F Portfolio Analysis (Q4 2024 - Q1 2026)</p>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- KPIs -->
+        <div class="kpi-grid full-width">
+            <div class="kpi-card">
+                <div class="kpi-label">Q1 2026 13F Notional Value</div>
+                <div class="kpi-value">$13.7B</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Growth (Q4 2024 → Q1 2026)</div>
+                <div class="kpi-value">~57x</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Core Strategy</div>
+                <div class="kpi-value" style="font-size: 1.25rem; display: flex; align-items: center; justify-content: center; height: 100%;">AI Picks & Shovels</div>
+            </div>
+        </div>
+
+        <!-- AUM Chart (SVG) -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="trending-up"></i> Explosive AUM Growth (~57x in 18 Months)
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: -0.5rem 0 1rem;">Source: SEC 13F filings. Q1 2026 reflects notional options value.</p>
+            <div class="chart-container">
+                <!-- Scale: y=250→$0, y=25→$16B. 225px/16B = 14.0625px per $1B -->
+                <!-- Points: Q4'24=$0.24B→y=247, Q1'25=$1.01B→y=236, Q2'25=$2.12B→y=220, Q3'25=$4.14B→y=192, Q4'25=$5.52B→y=172, Q1'26=$13.7B→y=57 -->
+                <svg class="chart-svg" viewBox="0 0 1000 300" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="colorAum" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#66fcf1" stopOpacity="0.5"/>
+                            <stop offset="95%" stopColor="#66fcf1" stopOpacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Grid lines at $0, $4B, $8B, $12B, $16B -->
+                    <line x1="50" y1="250" x2="1000" y2="250" class="chart-grid" />
+                    <line x1="50" y1="194" x2="1000" y2="194" class="chart-grid" />
+                    <line x1="50" y1="138" x2="1000" y2="138" class="chart-grid" />
+                    <line x1="50" y1="81" x2="1000" y2="81" class="chart-grid" />
+                    <line x1="50" y1="25" x2="1000" y2="25" class="chart-grid" />
+                    <text x="40" y="255" class="chart-label" text-anchor="end">$0</text>
+                    <text x="40" y="199" class="chart-label" text-anchor="end">$4B</text>
+                    <text x="40" y="143" class="chart-label" text-anchor="end">$8B</text>
+                    <text x="40" y="86" class="chart-label" text-anchor="end">$12B</text>
+                    <text x="40" y="30" class="chart-label" text-anchor="end">$16B</text>
+                    <path class="chart-area" d="M 50 250 L 50 247 L 240 236 L 430 220 L 620 192 L 810 172 L 1000 57 L 1000 250 Z" />
+                    <path class="chart-line" d="M 50 247 L 240 236 L 430 220 L 620 192 L 810 172 L 1000 57" />
+                    <!-- Data point labels -->
+                    <text x="50" y="240" class="chart-label" text-anchor="middle" fill="#66fcf1">$0.24B</text>
+                    <text x="240" y="229" class="chart-label" text-anchor="middle" fill="#66fcf1">$1.01B</text>
+                    <text x="430" y="213" class="chart-label" text-anchor="middle" fill="#66fcf1">$2.12B</text>
+                    <text x="620" y="185" class="chart-label" text-anchor="middle" fill="#66fcf1">$4.14B</text>
+                    <text x="810" y="165" class="chart-label" text-anchor="middle" fill="#66fcf1">$5.52B</text>
+                    <text x="1000" y="50" class="chart-label" text-anchor="middle" fill="#f72585">$13.7B</text>
+                    <!-- Data points -->
+                    <circle cx="50" cy="247" r="4" class="chart-point" />
+                    <circle cx="240" cy="236" r="4" class="chart-point" />
+                    <circle cx="430" cy="220" r="4" class="chart-point" />
+                    <circle cx="620" cy="192" r="4" class="chart-point" />
+                    <circle cx="810" cy="172" r="4" class="chart-point" />
+                    <circle cx="1000" cy="57" r="5" class="chart-point" style="stroke: #f72585;" />
+                    <!-- X-axis labels -->
+                    <text x="50" y="275" class="chart-label" text-anchor="middle">Q4 2024</text>
+                    <text x="240" y="275" class="chart-label" text-anchor="middle">Q1 2025</text>
+                    <text x="430" y="275" class="chart-label" text-anchor="middle">Q2 2025</text>
+                    <text x="620" y="275" class="chart-label" text-anchor="middle">Q3 2025</text>
+                    <text x="810" y="275" class="chart-label" text-anchor="middle">Q4 2025</text>
+                    <text x="1000" y="275" class="chart-label" text-anchor="middle">Q1 2026</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="glass-panel">
+            <h2 class="section-title">
+                <i data-lucide="layers"></i> Top Holdings Timeline
+            </h2>
+            <div class="flex-row" id="timeline-tabs"></div>
+            <div class="holding-list" id="holdings-container"></div>
+        </div>
+
+        <!-- Notes -->
+        <div class="glass-panel">
+            <h2 class="section-title">
+                <i data-lucide="book-open"></i> Investment Thesis
+            </h2>
+            <p style="line-height: 1.6;">
+                Run by Leopold Aschenbrenner, the fund aggressively bets on the infrastructure layer of AI.
+                Key themes include:
+            </p>
+            <ul style="line-height: 1.8; color: var(--text-secondary);">
+                <li>Power generation (VST, BE)</li>
+                <li>Bitcoin miners pivoting to AI hosting (CLSK, CORZ, IREN, APLD)</li>
+                <li>Optical networking (LITE)</li>
+            </ul>
+            <p style="margin-top: 1.5rem; font-style: italic; color: var(--accent-pink);">
+                * Note: Q1 2026 showed massive defensive puts on chipmakers (NVDA, SMH).
+            </p>
+        </div>
+
+        <!-- Compare Shift -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="activity"></i> Q1 2026 Shift: "Long Picks-and-Shovels, Short the Chips"
+            </h2>
+            <p style="margin-bottom: 2rem; color: var(--text-secondary);">
+                A major posture shift from Q4 2025. Long exposure continues in AI infrastructure and miners, 
+                overlaid with massive defensive short positions on the chipmakers themselves.
+            </p>
+            <div class="compare-grid">
+                <div class="compare-column longs">
+                    <h3>Increased Longs / Calls</h3>
+                    <div class="holding-list" id="longs-container"></div>
+                </div>
+                <div class="compare-column shorts">
+                    <h3>New Defensive Puts (Shorts)</h3>
+                    <div class="holding-list" id="shorts-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q1 2026 Portfolio Allocation -->
+        <div class="glass-panel full-width" id="alloc-section">
+            <h2 class="section-title">
+                <i data-lucide="pie-chart"></i> Q1 2026 Portfolio Allocation
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: -0.5rem 0 1.8rem;">
+                估計倉位規模（以 13F 申報名義值為基礎）。Puts 以名義倉位計算；Equity/Calls 以市值計算。
+                「Other / Remaining」為補足差額部分（較小持倉 + 估算誤差），使總額對齊 13F 申報的 <strong style="color:#fff;">$13.7B</strong>。
+            </p>
+            <div class="alloc-layout">
+                <!-- Donut Chart -->
+                <div class="donut-wrap">
+                    <svg class="donut-svg" viewBox="0 0 100 100" id="donut-svg"></svg>
+                    <div class="donut-legend" id="donut-legend"></div>
+                </div>
+                <!-- Right side: bar chart + strip -->
+                <div>
+                    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-bottom:1rem;">Top Holdings by Estimated Weight</div>
+                    <div class="bar-section" id="alloc-bars"></div>
+                    <div class="ls-strip-wrap">
+                        <div class="ls-strip-label">
+                            <span style="color:var(--accent-green);">▲ Long / Calls</span>
+                            <span style="color:var(--accent-red);">▼ Short / Puts</span>
+                        </div>
+                        <div class="ls-strip" id="ls-strip"></div>
+                        <div class="ls-footer">
+                            <span id="ls-long-pct"></span>
+                            <span id="ls-short-pct"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call Holdings Chart -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="git-branch"></i> Call Holdings — Position &amp; Price Evolution
+            </h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin:-0.5rem 0 1.2rem;">
+                所有曾以 <strong style="color:var(--accent-teal)">Calls</strong> 持倉的股票，追蹤底層股價及倉位性質轉變。<br>
+                <span style="font-size:0.78rem;">● 實心圓 = 當季持有 Call&nbsp;&nbsp;○ 空心圓 = Equity/Put&nbsp;&nbsp;★ = 今日價</span>
+            </p>
+            <div class="chart-toggle-row">
+                <button class="chart-toggle active" id="toggle-pct" onclick="switchCallMode('pct')">% Change from Call Entry</button>
+                <button class="chart-toggle" id="toggle-abs" onclick="switchCallMode('abs')">Absolute Price</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <svg id="call-svg" viewBox="0 0 960 320" width="100%" style="overflow:visible;"></svg>
+            </div>
+            <div class="call-chart-legend" id="call-legend"></div>
+        </div>
+
+        <!-- Equity P&L Panel -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="bar-chart-2"></i> Equity Positions &mdash; Actual Capital P&amp;L
+            </h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin:-0.5rem 0 1.5rem;">
+                僅看 <strong style="color:var(--accent-green);">Equity（股票）</strong> 倉位的實際資本損益，排除 Puts/Calls 的財務槓桿。以進場季度價格計算損益，白色標記 = 已退出倉位。
+            </p>
+            <div id="equity-pnl-chart" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+            <div id="equity-pnl-summary" style="display:flex; gap:2rem; margin-top:1.5rem; flex-wrap:wrap;"></div>
+        </div>
+
+        <!-- Top 3 Picks -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="trophy"></i> Top 3 Stock Picks &mdash; Data-Driven Selection
+            </h2>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin:-0.5rem 0 1.8rem;">
+                基於基金們位數據，用五大指標評分，從所有 <strong style="color:var(--accent-green);">HOLDING</strong> 股票中檢出最佳三選。
+            </p>
+
+            <!-- Scoring Table -->
+            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:0.8rem;">① 兩位評分表（僅限 HOLDING 備偉）</div>
+            <div style="overflow-x:auto;margin-bottom:2rem;">
+            <table class="score-table">
+                <thead><tr>
+                    <th>Ticker</th><th>主題</th><th>進場季</th><th>漲幅</th>
+                    <th>信心期<br><span style="font-size:0.65rem;">持倉長度</span></th>
+                    <th>主題強度</th><th>剩餘空間</th><th>追頂風險</th>
+                    <th style="color:#fff;"><strong>総分 /10</strong></th>
+                </tr></thead>
+                <tbody>
+                <tr class="top3"><td><strong style="color:#06d6a0">APLD</strong> 🥇</td><td><span class="score-pill" style="background:rgba(102,252,241,0.1);color:var(--accent-cyan)">AI數據中心</span></td><td>Q1'25</td><td style="color:#06d6a0;">+599%</td><td><span class="score-stars">★★★</span> 最早</td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★★★</span></td><td><span style="color:#06d6a0">低</span></td><td><strong style="color:#fff;font-size:1rem;">9.0</strong></td></tr>
+                <tr class="top3"><td><strong style="color:#ffc107">BW</strong> 🥈</td><td><span class="score-pill" style="background:rgba(6,214,160,0.1);color:var(--accent-green)">核能/電力</span></td><td>Q4'25</td><td style="color:#06d6a0;">+220%</td><td><span class="score-stars">★★</span>☆ 新進</td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★★★</span></td><td><span style="color:#06d6a0">低</span></td><td><strong style="color:#fff;font-size:1rem;">9.0</strong></td></tr>
+                <tr class="top3"><td><strong style="color:#9d4edd">IREN</strong> 🥉</td><td><span class="score-pill" style="background:rgba(157,78,221,0.1);color:var(--accent-purple)">AI算力+摎灑</span></td><td>Q1'25</td><td style="color:#06d6a0;">+727%</td><td><span class="score-stars">★★★</span> 最早</td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#ffc107">中</span></td><td><strong style="color:#fff;font-size:1rem;">8.5</strong></td></tr>
+                <tr><td>CORZ</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">摎灑</span></td><td>Q1'25</td><td style="color:#06d6a0;">+227%</td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#ffc107">中</span></td><td>7.5</td></tr>
+                <tr><td>CRWV</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">GPU雲端</span></td><td>Q1'25</td><td style="color:#06d6a0;">+181%</td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#ffc107">中</span></td><td>8.0</td></tr>
+                <tr><td>BE</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">燃料電池</span></td><td>Q3'25</td><td style="color:#06d6a0;">+1748%</td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★★</span></td><td><span class="score-stars">★☆☆</span></td><td><span style="color:#ef233c">高</span></td><td>7.0</td></tr>
+                <tr><td>SEI</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">行動電力</span></td><td>Q3'25</td><td style="color:#06d6a0;">+80%</td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#06d6a0">低</span></td><td>7.0</td></tr>
+                <tr><td>PUMP</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">能源服務</span></td><td>Q4'25</td><td style="color:#06d6a0;">+90%</td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#06d6a0">低</span></td><td>6.0</td></tr>
+                <tr><td>HIVE</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">摎灑</span></td><td>Q1'26</td><td style="color:#06d6a0;">+82%</td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★★★</span></td><td><span style="color:#ffc107">中</span></td><td>6.5</td></tr>
+                <tr><td>CLSK</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">摎灑</span></td><td>Q4'25</td><td style="color:#06d6a0;">+33%</td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★★☆</span></td><td><span style="color:#06d6a0">低</span></td><td>5.0</td></tr>
+                <tr><td>RIOT</td><td><span class="score-pill" style="background:rgba(255,255,255,0.05);color:var(--text-secondary)">摎灑</span></td><td>Q3'25</td><td style="color:#ffc107;">+22%</td><td><span class="score-stars">★★☆</span></td><td><span class="score-stars">★☆☆</span></td><td><span class="score-stars">★☆☆</span></td><td><span style="color:#06d6a0">低</span></td><td>4.5</td></tr>
+                </tbody>
+            </table>
+            </div>
+
+            <!-- Pick Cards -->
+            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:1rem;">② 三大選擇詳解</div>
+            <div class="picks-grid">
+
+                <!-- #1 APLD -->
+                <div class="pick-card gold">
+                    <div class="pick-rank">#1</div>
+                    <div class="pick-medal">🥇</div>
+                    <div class="pick-ticker">APLD</div>
+                    <div class="pick-name">Applied Digital Corporation</div>
+                    <div class="pick-meta">
+                        <span class="pick-tag" style="background:rgba(102,252,241,0.1);color:var(--accent-cyan);">AI數據中心</span>
+                        <span class="pick-tag" style="background:rgba(6,214,160,0.1);color:var(--accent-green);">HOLDING</span>
+                        <span class="pick-tag" style="background:rgba(255,193,7,0.1);color:#ffc107;">Q1'25進場</span>
+                    </div>
+                    <div class="pick-return" style="color:#06d6a0;">+598.9%</div>
+                    <div class="pick-entry">$5.6 → $39.14 &nbsp;|&nbsp; 評分: <strong style="color:#fff">9.0 / 10</strong></div>
+                    <div class="pick-score-bar" style="background:linear-gradient(90deg,#06d6a0,#45a29e);width:90%;"></div>
+                    <ul class="pick-thesis">
+                        <li>基金最早進場之一（Q1'25），持守超過 5 個季度不賣——最高信心信號</li>
+                        <li>純 AI 數據中心運營商，直接受益於 AI 算力需求爆發</li>
+                        <li>同期 SNDK +1090%、LITE +443% 已套現退出，APLD 仍繼續持有——利潤信心最強</li>
+                        <li>相比 CRWV（已上市、機構覆蓋大），APLD 仍在成長早期，散戶優勢付存</li>
+                        <li>後端有能源基緤設施投資，賬价仍低於純雲端同層</li>
+                    </ul>
+                </div>
+
+                <!-- #2 BW -->
+                <div class="pick-card silver">
+                    <div class="pick-rank">#2</div>
+                    <div class="pick-medal">🥈</div>
+                    <div class="pick-ticker">BW</div>
+                    <div class="pick-name">Babcock &amp; Wilcox Enterprises</div>
+                    <div class="pick-meta">
+                        <span class="pick-tag" style="background:rgba(6,214,160,0.1);color:var(--accent-green);">核能/電力</span>
+                        <span class="pick-tag" style="background:rgba(6,214,160,0.1);color:var(--accent-green);">HOLDING</span>
+                        <span class="pick-tag" style="background:rgba(102,252,241,0.1);color:var(--accent-cyan);">Q4'25新進</span>
+                    </div>
+                    <div class="pick-return" style="color:#06d6a0;">+219.8%</div>
+                    <div class="pick-entry">$6.3 → $20.15 &nbsp;|&nbsp; 評分: <strong style="color:#fff">9.0 / 10</strong></div>
+                    <div class="pick-score-bar" style="background:linear-gradient(90deg,#66fcf1,#45a29e);width:90%;"></div>
+                    <ul class="pick-thesis">
+                        <li>Q4 2025 新建倉——在其他倉位已大漲情況下仍選擇新開，是獨立高確信决定</li>
+                        <li>小型核食（SMR）+ 工業蒸汽 = AI 數據中心電力解決方案提供商</li>
+                        <li>核能文藝復興才剛開始，BW 有現成技術和建置合約，行業尚未被主流機構大量持有</li>
+                        <li>同主題的 BE +1748%，BW 的 +220% 相對是同類中最低估的，追頂風險最低</li>
+                        <li>小市値，機構持倉比例低，一旦主流檢测就會有明顯漲幅空間</li>
+                    </ul>
+                </div>
+
+                <!-- #3 IREN -->
+                <div class="pick-card bronze">
+                    <div class="pick-rank">#3</div>
+                    <div class="pick-medal">🥉</div>
+                    <div class="pick-ticker">IREN</div>
+                    <div class="pick-name">IREN Limited</div>
+                    <div class="pick-meta">
+                        <span class="pick-tag" style="background:rgba(157,78,221,0.1);color:var(--accent-purple);">AI算力+摎灑</span>
+                        <span class="pick-tag" style="background:rgba(6,214,160,0.1);color:var(--accent-green);">HOLDING</span>
+                        <span class="pick-tag" style="background:rgba(255,193,7,0.1);color:#ffc107;">Q1'25進場</span>
+                    </div>
+                    <div class="pick-return" style="color:#06d6a0;">+727.2%</div>
+                    <div class="pick-entry">$6.1 → $50.46 &nbsp;|&nbsp; 評分: <strong style="color:#fff">8.5 / 10</strong></div>
+                    <div class="pick-score-bar" style="background:linear-gradient(90deg,#9d4edd,#7b2fd1);width:85%;"></div>
+                    <ul class="pick-thesis">
+                        <li>Q1'25 最早進場，持守超過 5 個季度不賣，與 APLD 同級長期信心</li>
+                        <li>同時受益於 <strong style="color:#fff">両個主題</strong>：AI 算力租貼 + 比特幣挖灑，双保險</li>
+                        <li>同類挖灑股中唯一真正轉型 AI 算力的公司，不純粹依賴比特幣價格</li>
+                        <li>相比 BE +1748%，IREN 的 +727% 是同期進場中尚未充分发揮的主題股</li>
+                        <li>持續水電計算設施投資，行業演算小潘不斷擴張</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Exclusion Table -->
+            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:0.8rem;">③ 排除唹選理由</div>
+            <table class="excl-table">
+                <thead><tr><th>Ticker</th><th>漲幅</th><th>排除原因</th></tr></thead>
+                <tbody>
+                <tr><td><strong>BE</strong></td><td style="color:#06d6a0;">+1748%</td><td style="color:var(--text-secondary);">+1748% 進場漲幅極端，今日 $259 追頂風險高；同主題 BW 仸價更低且漲幅空間更大</td></tr>
+                <tr><td><strong>CRWV</strong></td><td style="color:#06d6a0;">+181%</td><td style="color:var(--text-secondary);">GPO 雲端首選，但上市後機構覆蓋已大，散戶優勢降低；APLD 的狀況更像早期 CRWV</td></tr>
+                <tr><td><strong>RIOT / CLSK</strong></td><td style="color:#ffc107;">+22% / +33%</td><td style="color:var(--text-secondary);">純摎灑，沒有 AI 算力轉型故事，漲幅也是 HOLDING 中最弱的，代表對比特幣價格依賴度高</td></tr>
+                <tr><td><strong>HIVE / T1E</strong></td><td style="color:#06d6a0;">+82% / +59%</td><td style="color:var(--text-secondary);">Q1'26 最新建倉，實際研究期太短，不確定性高，不如選擇已經驗證超過 4– 5 個季度的倉位</td></tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top:1.2rem;font-size:0.75rem;color:rgba(140,146,172,0.6);">&#9888; 以上分析僅供參考，不構成投資建議。所有備位小心望你做好自己的盡調查。</p>
+        </div>
+
+        <!-- Holdings Price History Table -->
+        <div class="glass-panel full-width">
+            <h2 class="section-title">
+                <i data-lucide="table-2"></i> Holdings Price History
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: -0.5rem 0 1.5rem;">
+                End-of-quarter estimated closing prices for every reported holding. <span style="color:var(--accent-green);">Green</span> = Long/Calls &nbsp;|&nbsp; <span style="color:var(--accent-red);">Red</span> = Puts. Prices are estimates based on public market data.
+            </p>
+            <div style="overflow-x: auto;">
+                <table class="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Company</th>
+                            <th>Q4 '24<br><span style="font-weight:normal;">Dec 31</span></th>
+                            <th>Q1 '25<br><span style="font-weight:normal;">Mar 31</span></th>
+                            <th>Q2 '25<br><span style="font-weight:normal;">Jun 30</span></th>
+                            <th>Q3 '25<br><span style="font-weight:normal;">Sep 30</span></th>
+                            <th>Q4 '25<br><span style="font-weight:normal;">Dec 31</span></th>
+                            <th>Q1 '26<br><span style="font-weight:normal;">Mar 31</span></th>
+                            <th>Today<br><span style="font-weight:normal;">~May '26</span></th>
+                            <th>Since Entry</th>
+                        </tr>
+                    </thead>
+                    <tbody id="price-history-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Popup -->
+    <div class="modal-overlay" id="info-modal" onclick="closeModal(event)">
+        <div class="modal-content glass-panel" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(true)"><i data-lucide="x"></i></button>
+            <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                <h2 id="modal-ticker" style="margin:0; font-size: 2rem; color: #fff;">TICKER</h2>
+                <span id="modal-badge" class="badge">Type</span>
+                <a id="modal-gfinance-link" href="#" target="_blank" rel="noopener noreferrer" class="gfinance-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Google Finance
+                </a>
+            </div>
+            <p id="modal-desc" style="color: var(--text-secondary); margin-top: 0; line-height:1.5;">Description goes here.</p>
+            
+            <div class="stock-kpi">
+                <div>
+                    <div class="kpi-label" style="font-size:0.75rem;">Quarters Held</div>
+                    <div id="modal-quarters" class="kpi-value" style="color: #fff;">0</div>
+                </div>
+                <div>
+                    <div class="kpi-label" style="font-size:0.75rem;">Est. Profit (Notional)</div>
+                    <div id="modal-profit" class="kpi-value text-green">+$0M</div>
+                </div>
+                <div>
+                    <div class="kpi-label" style="font-size:0.75rem;">Initial Price</div>
+                    <div id="modal-initial" class="kpi-value" style="color:#fff;">$0.00</div>
+                </div>
+                <div>
+                    <div class="kpi-label" style="font-size:0.75rem;">Current Price</div>
+                    <div id="modal-current" class="kpi-value text-green">$0.00 <span id="modal-pct" style="font-size:1rem; font-weight:normal;">(+0%)</span></div>
+                </div>
+            </div>
+    
+            <h3 style="margin-bottom:0.5rem; color: #fff; font-size: 1.1rem; border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; margin-top: 2rem;">Action History</h3>
+            <ul id="modal-history" class="history-list">
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // ── Q1 2026 Estimated Allocation Data (USD millions, notional) ──────
+        // Sources: SEC 13F filing value ÷ shares/contracts × market multiplier
+        const allocationData = [
+            // ---- SHORTS (Puts) ----
+            { ticker:'SMH',  name:'VanEck Semi ETF',     value:2050, type:'P', theme:'Semi Short' },
+            { ticker:'NVDA', name:'Nvidia Corp',          value:1560, type:'P', theme:'Semi Short' },
+            { ticker:'AMD',  name:'Adv Micro Devices',   value: 420, type:'P', theme:'Semi Short' },
+            { ticker:'AVGO', name:'Broadcom Inc',         value: 380, type:'P', theme:'Semi Short' },
+            { ticker:'ASML', name:'ASML Holding',         value: 310, type:'P', theme:'Semi Short' },
+            { ticker:'MU',   name:'Micron Technology',   value: 290, type:'P', theme:'Semi Short' },
+            { ticker:'INTC', name:'Intel Corp',           value: 260, type:'P', theme:'Semi Short' },
+            { ticker:'ORCL', name:'Oracle Corp',          value: 250, type:'P', theme:'Semi Short' },
+            { ticker:'TSM',  name:'TSMC (Puts)',          value: 190, type:'P', theme:'Semi Short' },
+            { ticker:'GLW',  name:'Corning Inc',          value: 140, type:'P', theme:'Semi Short' },
+            // ---- LONGS (Equity / Calls) ----
+            { ticker:'CRWV', name:'CoreWeave Inc',        value: 820, type:'E', theme:'AI Infra' },
+            { ticker:'TSM',  name:'TSMC (Calls)',         value: 420, type:'C', theme:'AI Infra' },
+            { ticker:'SNDK', name:'SanDisk Calls',        value: 210, type:'C', theme:'AI Infra' },
+            { ticker:'SEI',  name:'Solaris Energy',       value: 180, type:'E', theme:'Power' },
+            { ticker:'APLD', name:'Applied Digital',      value: 160, type:'E', theme:'AI Infra' },
+            { ticker:'CORZ', name:'Core Scientific',      value: 140, type:'E', theme:'Miners' },
+            { ticker:'IREN', name:'IREN Ltd',             value: 130, type:'E', theme:'Miners' },
+            { ticker:'CLSK', name:'CleanSpark',           value:  90, type:'E', theme:'Miners' },
+            { ticker:'RIOT', name:'Riot Platforms',       value:  85, type:'E', theme:'Miners' },
+            { ticker:'BE',   name:'Bloom Energy',         value:  80, type:'E', theme:'Power' },
+            { ticker:'BW',   name:'Babcock & Wilcox',     value:  70, type:'E', theme:'Power' },
+            { ticker:'BTDR', name:'Bitdeer Tech',         value:  55, type:'E', theme:'Miners' },
+            { ticker:'HIVE', name:'HIVE Digital',         value:  45, type:'E', theme:'Miners' },
+            { ticker:'BITF', name:'Bitfarms Ltd',         value:  40, type:'E', theme:'Miners' },
+            { ticker:'PSIX', name:'Power Solutions',      value:  38, type:'E', theme:'Power' },
+            { ticker:'PUMP', name:'ProPetro Hold.',       value:  35, type:'E', theme:'Power' },
+            { ticker:'EQT',  name:'EQT Corporation',      value:  30, type:'E', theme:'Power' },
+            { ticker:'T1E',  name:'T1 Energy Inc',        value:  18, type:'E', theme:'Power' },
+            // Remainder to reconcile with 13F total of $13,700M
+            // (8496 known + 5204 unattributed smaller positions & estimate variance)
+            { ticker:'—',    name:'Other / Remaining',         value:5204, type:'E', theme:'Other' },
+        ];
+
+        // ── Call Holdings Chart Data ──────────────────────────────────────
+        // qi = quarter index 0-6 (Q4'24, Q1'25, Q2'25, Q3'25, Q4'25, Q1'26, Today)
+        const QLABELS = ["Q4'24", "Q1'25", "Q2'25", "Q3'25", "Q4'25", "Q1'26", "Today"];
+        const callChartData = [
+            {
+                ticker:'INTC', name:'Intel Corp', color:'#45a29e',
+                points:[
+                    { qi:0, price:null,   type:null },
+                    { qi:1, price:22,     type:'C'  },  // call entry
+                    { qi:2, price:22,     type:'C'  },
+                    { qi:3, price:33,     type:'C'  },
+                    { qi:4, price:37,     type:'C'  },
+                    { qi:5, price:44,     type:'P'  },  // flipped to Put
+                    { qi:6, price:108.17, type:null },
+                ]
+            },
+            {
+                ticker:'CRWV', name:'CoreWeave', color:'#9d4edd',
+                points:[
+                    { qi:0, price:null,  type:null },
+                    { qi:1, price:37,   type:'E'  },
+                    { qi:2, price:null, type:null },
+                    { qi:3, price:137,  type:'E'  },
+                    { qi:4, price:72,   type:'C'  },  // call entry (alongside equity)
+                    { qi:5, price:77,   type:'E'  },  // back to equity only
+                    { qi:6, price:103.77,type:null},
+                ]
+            },
+            {
+                ticker:'SNDK', name:'SanDisk', color:'#f72585',
+                points:[
+                    { qi:0, price:null,    type:null },
+                    { qi:1, price:null,    type:null },
+                    { qi:2, price:null,    type:null },
+                    { qi:3, price:112,     type:'E'  },
+                    { qi:4, price:237,     type:'E'  },
+                    { qi:5, price:635,     type:'C'  },  // call entry
+                    { qi:6, price:1333.01, type:null },
+                ]
+            },
+            {
+                ticker:'TSM', name:'Taiwan Semi', color:'#66fcf1',
+                points:[
+                    { qi:0, price:null, type:null },
+                    { qi:1, price:null, type:null },
+                    { qi:2, price:null, type:null },
+                    { qi:3, price:279,  type:'P'  },  // put first
+                    { qi:4, price:null, type:null },
+                    { qi:5, price:338,  type:'C'  },  // call entry
+                    { qi:6, price:408.26,type:null},
+                ]
+            },
+        ];
+
+        let callMode = 'pct';
+        function switchCallMode(mode) {
+            callMode = mode;
+            document.getElementById('toggle-pct').classList.toggle('active', mode==='pct');
+            document.getElementById('toggle-abs').classList.toggle('active', mode==='abs');
+            renderCallChart();
+        }
+
+        function renderEquityPnL() {
+            const quarters = ['q4_24','q1_25','q2_25','q3_25','q4_25','q1_26'];
+            const qLabels  = {q4_24:"Q4'24", q1_25:"Q1'25", q2_25:"Q2'25", q3_25:"Q3'25", q4_25:"Q4'25", q1_26:"Q1'26"};
+
+            const rows = priceHistoryData.map(d => {
+                let entryQ = null, entryPrice = null;
+                for (const q of quarters) {
+                    if (d[q] && d[q].t === 'E' && !entryQ) {
+                        entryQ = q; entryPrice = d[q].p;
+                    }
+                }
+                if (!entryQ || !d.today) return null;
+                const stillHeld  = !!(d.q1_26 && d.q1_26.t === 'E');
+                const turnedPut  = !!(d.q1_26 && d.q1_26.t === 'P');  // was equity, now Put
+                const pct = ((d.today - entryPrice) / entryPrice) * 100;
+                return { ticker: d.ticker, name: d.name, entryQ, entryPrice, today: d.today, pct, stillHeld, turnedPut };
+            }).filter(Boolean).sort((a, b) => b.pct - a.pct);
+
+            const maxAbsPct = Math.max(...rows.map(r => Math.abs(r.pct)));
+
+            document.getElementById('equity-pnl-chart').innerHTML = rows.map(r => {
+                const isPos  = r.pct >= 0;
+                const color  = isPos ? '#06d6a0' : '#ef233c';
+                const barW   = (Math.abs(r.pct) / maxAbsPct * 100).toFixed(1);
+                const sign   = isPos ? '+' : '';
+                const badge  = r.turnedPut
+                    ? `<span style="font-size:0.68rem;background:rgba(239,35,60,0.18);color:#ef233c;padding:1px 7px;border-radius:4px;margin-left:5px;border:1px solid rgba(239,35,60,0.4);letter-spacing:0.3px;">&#8594; PUT Q1'26</span>`
+                    : r.stillHeld
+                    ? `<span style="font-size:0.68rem;background:rgba(6,214,160,0.12);color:var(--accent-green);padding:1px 6px;border-radius:4px;margin-left:5px;">HOLDING</span>`
+                    : `<span style="font-size:0.68rem;background:rgba(255,255,255,0.05);color:var(--text-secondary);padding:1px 6px;border-radius:4px;margin-left:5px;">EXITED</span>`;
+                const rowBg     = r.turnedPut ? 'background:rgba(239,35,60,0.05);border-radius:8px;padding:0.4rem 0.6rem;border-left:3px solid rgba(239,35,60,0.5);' : 'padding:0.28rem 0;';
+                const putNote   = r.turnedPut
+                    ? `<span style="font-size:0.75rem;color:#ef233c;margin-left:6px;">&#9660; Sentiment flipped — locked gains as Put hedge</span>`
+                    : '';
+                return `<div style="${rowBg}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.22rem;">
+                        <span style="font-weight:700;color:#fff;font-size:0.88rem;min-width:52px;">${r.ticker}${badge}</span>
+                        <span style="font-size:0.77rem;color:var(--text-secondary);flex:1;padding:0 0.75rem;">
+                            Entry ${qLabels[r.entryQ]} @ <strong style="color:#fff;">$${r.entryPrice.toLocaleString()}</strong>
+                            &nbsp;&rarr;&nbsp; Today <strong style="color:${color};">$${r.today.toLocaleString()}</strong>
+                            ${putNote}
+                        </span>
+                        <span style="font-weight:700;color:${color};min-width:80px;text-align:right;font-size:0.9rem;">${sign}${r.pct.toFixed(1)}%</span>
+                    </div>
+                    <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">
+                        <div style="height:100%;width:${barW}%;background:${color};border-radius:99px;"></div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const winners  = rows.filter(r => r.pct > 0);
+            const losers   = rows.filter(r => r.pct < 0);
+            const flipped  = rows.filter(r => r.turnedPut);
+            const avgGain  = winners.length ? (winners.reduce((s,r)=>s+r.pct,0)/winners.length).toFixed(1) : '—';
+            const avgLoss  = losers.length  ? (losers.reduce((s,r)=>s+r.pct,0)/losers.length).toFixed(1)  : '—';
+            const best = rows[0], worst = rows[rows.length-1];
+            document.getElementById('equity-pnl-summary').innerHTML = [
+                { label:'Winners / Losers', val:`${winners.length}W / ${losers.length}L`, color:'#fff' },
+                { label:'Avg Gain', val:`+${avgGain}%`, color:'var(--accent-green)' },
+                { label:'Avg Loss', val:`${avgLoss}%`, color:'var(--accent-red)' },
+                { label:'Best Pick', val:`${best.ticker} +${best.pct.toFixed(0)}%`, color:'var(--accent-green)' },
+                { label:'Worst Pick', val:`${worst.ticker} ${worst.pct.toFixed(0)}%`, color:'var(--accent-red)' },
+                { label:'Flipped → Put Q1\'26', val:`${flipped.length} ticker${flipped.length!==1?'s':''}`, color:'#ef233c' },
+            ].map(s => `<div style="text-align:center;padding:0.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--panel-border);">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);">${s.label}</div>
+                <div style="font-size:1.15rem;font-weight:700;color:${s.color};margin-top:0.25rem;">${s.val}</div>
+            </div>`).join('');
+        }
+
+        function renderCallChart() {
+            const svg = document.getElementById('call-svg');
+            const PAD = { l:72, r:40, t:30, b:52 };
+            const W = 960, H = 320;
+            const cW = W - PAD.l - PAD.r;
+            const cH = H - PAD.t - PAD.b;
+            const xStep = cW / 6;  // 7 points → 6 gaps
+
+            // Compute normalised or absolute values
+            const series = callChartData.map(d => {
+                const entryPt = d.points.find(p => p.type === 'C');
+                const entryPrice = entryPt ? entryPt.price : null;
+                const vals = d.points.map(p => {
+                    if (p.price === null) return null;
+                    if (callMode === 'pct') return entryPrice ? ((p.price - entryPrice) / entryPrice * 100) : null;
+                    return p.price;
+                });
+                return { ...d, vals, entryPrice };
+            });
+
+            // Y range
+            let allVals = series.flatMap(s => s.vals).filter(v => v !== null);
+            let yMin = Math.min(...allVals);
+            let yMax = Math.max(...allVals);
+            const pad = (yMax - yMin) * 0.12;
+            yMin -= pad; yMax += pad;
+
+            const xPos = i => PAD.l + i * xStep;
+            const yPos = v => PAD.t + cH - ((v - yMin) / (yMax - yMin)) * cH;
+            const yZero = callMode === 'pct' ? yPos(0) : null;
+
+            let html = '';
+
+            // Grid lines
+            const yTicks = 5;
+            for (let i = 0; i <= yTicks; i++) {
+                const val = yMin + (yMax - yMin) * (i / yTicks);
+                const y = yPos(val);
+                const label = callMode === 'pct' ? (val >= 0 ? '+' : '') + val.toFixed(0) + '%' : '$' + val.toFixed(0);
+                html += `<line x1="${PAD.l}" y1="${y.toFixed(1)}" x2="${W - PAD.r}" y2="${y.toFixed(1)}" stroke="rgba(69,162,158,0.15)" stroke-dasharray="4 4"/>`;
+                html += `<text x="${PAD.l - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#8c92ac">${label}</text>`;
+            }
+
+            // Zero line for % mode
+            if (callMode === 'pct' && yZero >= PAD.t && yZero <= PAD.t + cH) {
+                html += `<line x1="${PAD.l}" y1="${yZero.toFixed(1)}" x2="${W-PAD.r}" y2="${yZero.toFixed(1)}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>`;
+            }
+
+            // X-axis labels
+            QLABELS.forEach((lbl, i) => {
+                html += `<text x="${xPos(i).toFixed(1)}" y="${H - PAD.b + 18}" text-anchor="middle" font-size="11" fill="#8c92ac">${lbl}</text>`;
+            });
+
+            // Series lines + dots
+            series.forEach(s => {
+                // Build path from connected non-null points
+                const pts = s.vals.map((v, i) => v !== null ? { x: xPos(i), y: yPos(v), i } : null).filter(Boolean);
+                if (pts.length < 2) return;
+
+                // Line segments
+                for (let j = 0; j < pts.length - 1; j++) {
+                    const a = pts[j], b = pts[j+1];
+                    const typeA = s.points[a.i].type;
+                    const isCallSeg = typeA === 'C';
+                    html += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
+                        stroke="${s.color}" stroke-width="${isCallSeg ? 3 : 1.5}" stroke-dasharray="${isCallSeg ? 'none' : '5 3'}" opacity="${isCallSeg ? 1 : 0.45}"/>`;
+                }
+
+                // Dots
+                pts.forEach(p => {
+                    const pt = s.points[p.i];
+                    const isCall = pt.type === 'C';
+                    const isToday = p.i === 6;
+                    const val = s.vals[p.i];
+                    const label = callMode === 'pct' ? (val >= 0 ? '+' : '') + val.toFixed(1) + '%' : '$' + val.toLocaleString();
+                    if (isToday) {
+                        html += `<text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" font-size="13" fill="${s.color}">★</text>`;
+                    } else if (isCall) {
+                        html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6" fill="${s.color}" stroke="${s.color}"/>`;
+                    } else {
+                        html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0b0c10" stroke="${s.color}" stroke-width="1.5" opacity="0.6"/>`;
+                    }
+                    // Tooltip title
+                    html += `<title>${s.ticker} ${QLABELS[p.i]}: ${label} (${pt.type||'now'})</title>`;
+                    // Value label on call dots
+                    if (isCall || isToday) {
+                        const anchor = p.i >= 5 ? 'end' : 'middle';
+                        html += `<text x="${p.x.toFixed(1)}" y="${(p.y - (isCall?10:0)).toFixed(1)}" text-anchor="${anchor}" font-size="9.5" fill="${s.color}" font-weight="600">${label}</text>`;
+                    }
+                });
+
+                // Ticker label at last point
+                const last = pts[pts.length - 1];
+                html += `<text x="${(last.x + 6).toFixed(1)}" y="${(last.y + 4).toFixed(1)}" font-size="11" fill="${s.color}" font-weight="700">${s.ticker}</text>`;
+            });
+
+            svg.innerHTML = html;
+
+            // Legend
+            document.getElementById('call-legend').innerHTML = callChartData.map(d => {
+                const ep = d.points.find(p => p.type === 'C');
+                const entryLabel = ep ? `${QLABELS[ep.qi]} @ $${ep.price}` : 'N/A';
+                return `<div class="call-legend-item">
+                    <div class="call-legend-line" style="background:${d.color}"></div>
+                    <span style="color:#fff;font-weight:600">${d.ticker}</span>
+                    <span style="color:var(--text-secondary)">${d.name}</span>
+                    <span style="font-size:0.75rem;color:var(--accent-teal);margin-left:4px;">Call entry: ${entryLabel}</span>
+                </div>`;
+            }).join('');
+        }
+
+        const themeColors = {
+            'Semi Short': '#ef233c',
+            'AI Infra':   '#66fcf1',
+            'Miners':     '#9d4edd',
+            'Power':      '#06d6a0',
+            'Other':      '#3a3f5c',
+        };
+
+        function renderAllocation() {
+            const total = allocationData.reduce((s, d) => s + d.value, 0);
+
+            // ── 1. Donut chart ────────────────────────────────────────────
+            const themes = {};
+            allocationData.forEach(d => {
+                themes[d.theme] = (themes[d.theme] || 0) + d.value;
+            });
+            const themeArr = Object.entries(themes).sort((a,b) => b[1]-a[1]);
+            const cx = 50, cy = 50, r = 38, gap = 1.5;
+            let startAngle = -Math.PI / 2;
+            let paths = '';
+            themeArr.forEach(([theme, val]) => {
+                const pct = val / total;
+                const angle = pct * Math.PI * 2;
+                const endAngle = startAngle + angle - (gap * Math.PI / 180);
+                const x1 = cx + r * Math.cos(startAngle);
+                const y1 = cy + r * Math.sin(startAngle);
+                const x2 = cx + r * Math.cos(endAngle);
+                const y2 = cy + r * Math.sin(endAngle);
+                const largeArc = angle > Math.PI ? 1 : 0;
+                paths += `<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z"
+                    fill="${themeColors[theme]}" opacity="0.85"
+                    style="transition: opacity 0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85"
+                    ><title>${theme}: $${(val/1000).toFixed(1)}B (${(pct*100).toFixed(1)}%)</title></path>`;
+                startAngle += angle;
+            });
+            // inner circle cutout
+            paths += `<circle cx="${cx}" cy="${cy}" r="22" fill="#0b0c10"/>`;
+            paths += `<text x="${cx}" y="${cy-3}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">$${(total/1000).toFixed(1)}B</text>`;
+            paths += `<text x="${cx}" y="${cy+6}" text-anchor="middle" fill="#8c92ac" font-size="4.5">Total Notional</text>`;
+            document.getElementById('donut-svg').innerHTML = paths;
+
+            // Legend
+            document.getElementById('donut-legend').innerHTML = themeArr.map(([theme, val]) => `
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:${themeColors[theme]}"></div>
+                    <span style="color:var(--text-secondary)">${theme}</span>
+                    <span style="color:var(--text-secondary); font-size:0.78rem; margin-left:2px;">$${(val/1000).toFixed(2)}B</span>
+                    <span class="legend-pct">${(val/total*100).toFixed(1)}%</span>
+                </div>`).join('');
+
+            // ── 2. Horizontal bar chart (top 10 by value) ─────────────────
+            const top10 = [...allocationData].sort((a,b)=>b.value-a.value).slice(0,10);
+            const maxVal = top10[0].value;
+            document.getElementById('alloc-bars').innerHTML = top10.map(d => {
+                const pct = (d.value / total * 100).toFixed(1);
+                const barW = (d.value / maxVal * 100).toFixed(1);
+                const color = d.type === 'P' ? '#ef233c' : d.type === 'C' ? '#45a29e' : '#06d6a0';
+                const typeLabel = d.type === 'P' ? 'PUT' : d.type === 'C' ? 'CALL' : 'EQ';
+                return `<div class="bar-item">
+                    <div class="bar-label-row">
+                        <span class="bar-ticker">${d.ticker} <span style="font-size:0.7rem;font-weight:600;padding:1px 5px;border-radius:4px;background:${color}22;color:${color};margin-left:4px;">${typeLabel}</span></span>
+                        <span class="bar-val">$${(d.value/1000).toFixed(d.value>=1000?1:2)}B &nbsp; <strong style="color:#fff">${pct}%</strong></span>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${barW}%;background:${color};"></div></div>
+                </div>`;
+            }).join('');
+
+            // ── 3. Long / Short strip ─────────────────────────────────────
+            const longTotal  = allocationData.filter(d=>d.type!=='P').reduce((s,d)=>s+d.value,0);
+            const shortTotal = allocationData.filter(d=>d.type==='P').reduce((s,d)=>s+d.value,0);
+            const longPct  = (longTotal  / total * 100).toFixed(1);
+            const shortPct = (shortTotal / total * 100).toFixed(1);
+            document.getElementById('ls-strip').innerHTML =
+                `<div class="ls-long"  style="width:${longPct}%"></div><div class="ls-short" style="width:${shortPct}%"></div>`;
+            document.getElementById('ls-long-pct').textContent  = `▲ Long/Calls ${longPct}%  ($${(longTotal/1000).toFixed(2)}B)`;
+            document.getElementById('ls-short-pct').textContent = `▼ Puts ${shortPct}%  ($${(shortTotal/1000).toFixed(2)}B)`;
+        }
+
+        // ── Complete Holdings from raw SEC 13F XML filings (all 6 quarters) ─
+        // Prices are approximate per-share based on filed $value ÷ shares.
+        // null = not reported that quarter. t: E=Equity C=Call P=Put
+        // 'today' prices fetched live from Google Finance on 2026-05-19
+        const priceHistoryData = [
+            { ticker:'VST',  name:'Vistra Corp',              q4_24:{t:'E',p:138}, q1_25:{t:'E',p:118}, q2_25:{t:'E',p:194}, q3_25:{t:'E',p:196}, q4_25:null,           q1_26:null,           today:136.75  },
+            { ticker:'MRVL', name:'Marvell Technology',       q4_24:{t:'E',p:110}, q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:null,           today:168.93  },
+            { ticker:'TLNE', name:'Talen Energy Corp',        q4_24:{t:'E',p:201}, q1_25:{t:'E',p:200}, q2_25:null,          q3_25:null,          q4_25:null,           q1_26:null,           today:324.21  },
+            { ticker:'VRT',  name:'Vertiv Holdings',          q4_24:{t:'E',p:114}, q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:null,           today:339.73  },
+            { ticker:'MOD',  name:'Modine Mfg Co',            q4_24:{t:'E',p:116}, q1_25:{t:'E',p:77},  q2_25:null,          q3_25:null,          q4_25:null,           q1_26:null,           today:247.13  },
+            { ticker:'CEG',  name:'Constellation Energy',     q4_24:{t:'E',p:224}, q1_25:{t:'E',p:202}, q2_25:{t:'E',p:323}, q3_25:null,          q4_25:null,           q1_26:null,           today:262.00  },
+            { ticker:'APLD', name:'Applied Digital Corp',     q4_24:null,          q1_25:{t:'E',p:5.6}, q2_25:{t:'E',p:10},  q3_25:{t:'E',p:23},  q4_25:{t:'E',p:24},   q1_26:{t:'E',p:24},   today:39.14   },
+            { ticker:'AVGO', name:'Broadcom Inc',             q4_24:null,          q1_25:{t:'E',p:167}, q2_25:{t:'E',p:276}, q3_25:{t:'P',p:330}, q4_25:null,           q1_26:{t:'P',p:309},  today:420.71  },
+            { ticker:'ONTO', name:'Onto Innovation',          q4_24:null,          q1_25:{t:'E',p:121}, q2_25:null,          q3_25:null,          q4_25:null,           q1_26:null,           today:254.53  },
+            { ticker:'CORZ', name:'Core Scientific',          q4_24:null,          q1_25:{t:'E',p:7.2}, q2_25:{t:'E',p:17},  q3_25:{t:'E',p:18},  q4_25:{t:'E',p:14.6}, q1_26:{t:'E',p:15},   today:23.57   },
+            { ticker:'CRWV', name:'CoreWeave Inc',            q4_24:null,          q1_25:{t:'E',p:37},  q2_25:null,          q3_25:{t:'E',p:137}, q4_25:{t:'E',p:72},   q1_26:{t:'E',p:77},   today:103.77  },
+            { ticker:'EQT',  name:'EQT Corporation',          q4_24:null,          q1_25:{t:'E',p:53},  q2_25:{t:'E',p:58},  q3_25:{t:'E',p:54},  q4_25:{t:'E',p:54},   q1_26:null,           today:57.45   },
+            { ticker:'IREN', name:'IREN Ltd',                 q4_24:null,          q1_25:{t:'E',p:6.1}, q2_25:{t:'E',p:14},  q3_25:{t:'E',p:47},  q4_25:{t:'E',p:37.8}, q1_26:{t:'E',p:34},   today:50.46   },
+            { ticker:'INTC', name:'Intel Corporation',        q4_24:null,          q1_25:{t:'C',p:22},  q2_25:{t:'C',p:22},  q3_25:{t:'C',p:33},  q4_25:{t:'C',p:37},   q1_26:{t:'P',p:44},   today:108.17  },
+            { ticker:'SMH',  name:'VanEck Semiconductor ETF', q4_24:null,          q1_25:null,          q2_25:{t:'P',p:279}, q3_25:{t:'P',p:326}, q4_25:null,           q1_26:{t:'P',p:383},  today:546.16  },
+            { ticker:'RIOT', name:'Riot Platforms',           q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:19},  q4_25:{t:'E',p:12.7}, q1_26:{t:'E',p:12.4}, today:23.18   },
+            { ticker:'SNDK', name:'SanDisk Corporation',      q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:112}, q4_25:{t:'E',p:237},  q1_26:{t:'C',p:635},  today:1333.01 },
+            { ticker:'TSM',  name:'Taiwan Semiconductor',     q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'P',p:279}, q4_25:null,           q1_26:{t:'C',p:338},  today:395.95  },
+            // Q3 2025 new positions
+            { ticker:'BTDR', name:'Bitdeer Technologies',     q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:17},  q4_25:{t:'E',p:11.2}, q1_26:{t:'E',p:8.6},  today:13.15   },
+            { ticker:'BE',   name:'Bloom Energy Corp',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:14},  q4_25:{t:'E',p:86.9}, q1_26:{t:'E',p:135},  today:258.71  },
+            { ticker:'CIFR', name:'Cipher Mining Inc',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:12.6},q4_25:{t:'E',p:14.8}, q1_26:null,           today:19.12   },
+            { ticker:'COHR', name:'Coherent Corp',            q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:108}, q4_25:{t:'E',p:184},  q1_26:null,           today:362.83  },
+            { ticker:'GLXY', name:'Galaxy Digital Inc',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:33.8},q4_25:null,           q1_26:null,           today:27.87   },
+            { ticker:'HUT',  name:'Hut 8 Corp',               q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:34.8},q4_25:{t:'E',p:45.9}, q1_26:null,           today:96.20   },
+            { ticker:'LITE', name:'Lumentum Holdings',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:163}, q4_25:{t:'E',p:369},  q1_26:null,           today:884.98  },
+            { ticker:'MU',   name:'Micron Technology',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'P',p:167}, q4_25:null,           q1_26:{t:'P',p:338},  today:681.54  },
+            { ticker:'NVDA', name:'Nvidia Corporation',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'P',p:187}, q4_25:null,           q1_26:{t:'P',p:1568}, today:222.32  },
+            { ticker:'SEI',  name:'Solaris Energy Infras',    q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:40},  q4_25:{t:'E',p:46},   q1_26:{t:'E',p:56.5}, today:72.13   },
+            { ticker:'STX',  name:'Seagate Technology',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:236}, q4_25:null,           q1_26:null,           today:740.84  },
+            { ticker:'TSEM', name:'Tower Semiconductor',      q4_24:null,          q1_25:null,          q2_25:null,          q3_25:{t:'E',p:72},  q4_25:{t:'E',p:117},  q1_26:null,           today:248.07  },
+            // Q4 2025 new positions
+            { ticker:'BW',   name:'Babcock & Wilcox',         q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:6.3},  q1_26:{t:'E',p:14.7}, today:20.15   },
+            { ticker:'BITF', name:'Bitfarms Ltd',             q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:2.4},  q1_26:{t:'E',p:1.9},  today:4.18    },
+            { ticker:'CLSK', name:'CleanSpark Inc',           q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:10.1}, q1_26:{t:'E',p:8.5},  today:13.44   },
+            { ticker:'INFY', name:'Infosys Ltd (ADR)',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'P',p:17.8}, q1_26:{t:'P',p:13.5}, today:12.59   },
+            { ticker:'KRC',  name:'Kilroy Realty Corp',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:37.4}, q1_26:null,           today:34.14   },
+            { ticker:'LBRT', name:'Liberty Energy Inc',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:18.5}, q1_26:null,           today:33.07   },
+            { ticker:'PSIX', name:'Power Solutions Intl',     q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:57.1}, q1_26:{t:'E',p:60.9}, today:38.93   },
+            { ticker:'PUMP', name:'ProPetro Holding',         q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:9.5},  q1_26:{t:'E',p:14.4}, today:18.03   },
+            { ticker:'WHFR', name:'Whitefiber Inc',           q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:{t:'E',p:15.8}, q1_26:{t:'E',p:11.9}, today:null    },
+            // Q1 2026 new positions
+            { ticker:'ASML', name:'ASML Holding NV',          q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'P',p:1321}, today:1472.39 },
+            { ticker:'AMD',  name:'Advanced Micro Devices',   q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'P',p:969},  today:420.99  },
+            { ticker:'GLW',  name:'Corning Inc',              q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'P',p:136},  today:178.55  },
+            { ticker:'HIVE', name:'HIVE Digital Technologies',q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'E',p:1.9},  today:3.46    },
+            { ticker:'ORCL', name:'Oracle Corporation',       q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'P',p:1073}, today:186.61  },
+            { ticker:'SHRO', name:'Sharonai Holdings',        q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'E',p:22.7}, today:null    },
+            { ticker:'T1E',  name:'T1 Energy Inc',            q4_24:null,          q1_25:null,          q2_25:null,          q3_25:null,          q4_25:null,           q1_26:{t:'E',p:4.4},  today:7.00    },
+        ];
+
+
+
+        function renderPriceHistory() {
+            const quarters = ['q4_24','q1_25','q2_25','q3_25','q4_25','q1_26'];
+            const typeLabel = { E:'LONG', C:'CALLS', P:'PUTS' };
+            const typeClass = { E:'long', C:'calls', P:'short' };
+
+            const rows = priceHistoryData.map(row => {
+                // Find first held quarter for "since entry" calc
+                let entryPrice = null, entryIsPut = false;
+                for (const q of quarters) {
+                    if (row[q]) { entryPrice = row[q].p; entryIsPut = row[q].t === 'P'; break; }
+                }
+
+                const qCells = quarters.map(q => {
+                    const h = row[q];
+                    if (!h) return `<td><span class="ph-empty">—</span></td>`;
+                    const cls = typeClass[h.t];
+                    const lbl = typeLabel[h.t];
+                    return `<td><div class="ph-cell"><span class="ph-price">$${h.p.toLocaleString()}</span><span class="ph-type ${cls}">${lbl}</span></div></td>`;
+                }).join('');
+
+                let changeTd = '<td class="ph-empty">—</td>';
+                if (entryPrice !== null) {
+                    const rawChg = ((row.today - entryPrice) / entryPrice) * 100;
+                    // For puts: profit when stock drops
+                    const effectiveChg = entryIsPut ? -rawChg : rawChg;
+                    const sign = effectiveChg >= 0 ? '+' : '';
+                    const cls2 = effectiveChg >= 0 ? 'pos' : 'neg';
+                    changeTd = `<td><span class="ph-change ${cls2}">${sign}${effectiveChg.toFixed(1)}%</span></td>`;
+                }
+
+                return `<tr>
+                    <td>${row.ticker}</td>
+                    <td title="${row.name}">${row.name}</td>
+                    ${qCells}
+                    <td class="ph-today">${row.today != null ? '$' + row.today.toLocaleString() : '<span class="ph-empty">N/A</span>'}</td>
+                    ${row.today != null ? changeTd : '<td class="ph-empty">—</td>'}
+                </tr>`;
+
+            }).join('');
+
+            document.getElementById('price-history-body').innerHTML = rows;
+        }
+
+        // Data
+        const holdingsData = {
+            'Q4 2024': [
+                { name: 'MRVL', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'VST', type: 'Equity', thesis: 'Power Generation' },
+                { name: 'VRT', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'TLNE', type: 'Equity', thesis: 'AI Infrastructure' },
+            ],
+            'Q1 2025': [
+                { name: 'INTC', type: 'Calls', thesis: 'Chipmaker (Long)' },
+                { name: 'AVGO', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'ONTO', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'VST', type: 'Equity', thesis: 'Power Generation' },
+            ],
+            'Q2 2025': [
+                { name: 'SMH', type: 'Puts', thesis: 'Semi Hedge/Short' },
+                { name: 'INTC', type: 'Calls', thesis: 'Chipmaker (Long)' },
+                { name: 'AVGO', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'VST', type: 'Equity', thesis: 'Power Generation' },
+            ],
+            'Q3 2025': [
+                { name: 'INTC', type: 'Calls', thesis: 'Chipmaker (Long)' },
+                { name: 'CRWV', type: 'Equity', thesis: 'AI Infrastructure' },
+                { name: 'CORZ', type: 'Equity', thesis: 'AI Miners' },
+                { name: 'IREN', type: 'Equity', thesis: 'AI Miners' },
+            ],
+            'Q4 2025': [
+                { name: 'BE', type: 'Equity', thesis: 'Power Generation' },
+                { name: 'CRWV', type: 'Calls', thesis: 'AI Infrastructure' },
+                { name: 'INTC', type: 'Calls', thesis: 'Chipmaker (Long)' },
+                { name: 'LITE', type: 'Equity', thesis: 'Optical Networking' },
+                { name: 'CRWV', type: 'Equity', thesis: 'AI Infrastructure' },
+            ],
+            'Q1 2026': [
+                { name: 'SMH', type: 'Puts', thesis: 'Semi Hedge/Short' },
+                { name: 'NVDA', type: 'Puts', thesis: 'Semi Hedge/Short' },
+                { name: 'CLSK', type: 'Equity', thesis: 'AI Miners' },
+                { name: 'SNDK', type: 'Calls', thesis: 'AI Infrastructure' },
+                { name: 'TSM', type: 'Calls', thesis: 'AI Infrastructure' },
+            ]
+        };
+
+        const shiftData = {
+            longs: [
+                { name: 'CLSK', type: 'Equity', details: '10.6M shares ($90M)' },
+                { name: 'SNDK', type: 'Calls', details: 'New calls' },
+                { name: 'TSM', type: 'Calls', details: 'New calls' },
+                { name: 'APLD', type: 'Equity', details: 'Increased' },
+                { name: 'RIOT', type: 'Equity', details: 'Increased' },
+                { name: 'IREN', type: 'Equity', details: 'Increased' },
+                { name: 'CRWV', type: 'Equity', details: 'Increased' }
+            ],
+            shorts: [
+                { name: 'SMH', type: 'Puts', details: '~$2B+ notional' },
+                { name: 'NVDA', type: 'Puts', details: '~$1.5B+ notional' },
+                { name: 'AVGO', type: 'Puts', details: 'New puts' },
+                { name: 'ORCL', type: 'Puts', details: 'New puts' },
+                { name: 'AMD', type: 'Puts', details: 'New puts' },
+                { name: 'MU', type: 'Puts', details: 'New puts' },
+                { name: 'ASML', type: 'Puts', details: 'New puts' },
+                { name: 'INTC', type: 'Puts', details: 'Flipped from calls to puts' },
+                { name: 'GLW', type: 'Puts', details: 'New puts' },
+                { name: 'TSM', type: 'Puts', details: 'New puts' }
+            ]
+        };
+
+        // Full company name lookup
+        const stockNames = {
+            'NVDA': 'Nvidia Corporation',
+            'SMH': 'VanEck Semiconductor ETF',
+            'INTC': 'Intel Corporation',
+            'VST': 'Vistra Energy Corp',
+            'CLSK': 'CleanSpark Inc',
+            'CRWV': 'CoreWeave Inc',
+            'BE': 'Bloom Energy Corp',
+            'AVGO': 'Broadcom Inc',
+            'TSM': 'Taiwan Semiconductor Mfg',
+            'SNDK': 'Sandisk Corporation',
+            'MRVL': 'Marvell Technology Inc',
+            'VRT': 'Vertiv Holdings',
+            'TLNE': 'Talon Energy',
+            'ONTO': 'Onto Innovation Inc',
+            'APLD': 'Applied Digital Corp',
+            'RIOT': 'Riot Platforms Inc',
+            'IREN': 'IREN Limited',
+            'CORZ': 'Core Scientific Inc',
+            'LITE': 'Lumentum Holdings',
+            'ORCL': 'Oracle Corporation',
+            'AMD': 'Advanced Micro Devices',
+            'MU': 'Micron Technology Inc',
+            'ASML': 'ASML Holding NV',
+            'GLW': 'Corning Incorporated',
+        };
+
+        // Simulated Stock Details
+        const stockDetails = {
+            'NVDA': { desc: 'Nvidia Corp - Leading AI chipmaker.', qs: 1, initial: 905, current: 850, profit: '+$120M', history: ['Q1 2026: Initiated massive ~$1.5B+ Puts (Defensive)'] },
+            'SMH': { desc: 'VanEck Semiconductor ETF', qs: 4, initial: 220, current: 215, profit: '+$350M', history: ['Q2 2025: Initiated Puts', 'Q3 2025: Increased Puts', 'Q4 2025: Maintained', 'Q1 2026: Massively increased to ~$2B+ notional'] },
+            'INTC': { desc: 'Intel Corp - Chipmaker', qs: 5, initial: 42, current: 33, profit: '-$150M', history: ['Q1 2025: Initiated Calls', 'Q2 2025: Held Calls', 'Q3 2025: Increased Calls', 'Q4 2025: Held Calls', 'Q1 2026: Flipped completely from Calls to Puts'] },
+            'VST': { desc: 'Vistra Energy - Nuclear/Power generation', qs: 4, initial: 35, current: 95, profit: '+$850M', history: ['Q4 2024: Initiated Equity', 'Q1 2025: Increased', 'Q2 2025: Held', 'Q3 2025: Scaled down slightly'] },
+            'CLSK': { desc: 'CleanSpark - Bitcoin Miner pivoting to AI', qs: 1, initial: 8.50, current: 10.20, profit: '+$18M', history: ['Q1 2026: Brand new ~10.6M-share position ($90M)'] },
+            'CRWV': { desc: 'CoreWeave / AI Cloud Infrastructure', qs: 3, initial: 50, current: 120, profit: '+$400M', history: ['Q3 2025: Initiated Equity', 'Q4 2025: Added Calls and Equity', 'Q1 2026: Increased Equity'] },
+            'BE': { desc: 'Bloom Energy - Solid oxide fuel cells', qs: 2, initial: 12, current: 18, profit: '+$90M', history: ['Q4 2025: Initiated Equity', 'Q1 2026: Held'] },
+            'AVGO': { desc: 'Broadcom - Custom Silicon & Networking', qs: 4, initial: 1200, current: 1400, profit: '+$150M', history: ['Q1 2025: Initiated Equity', 'Q2 2025: Held', 'Q3 2025: Exited Equity', 'Q1 2026: Initiated Puts'] },
+            'TSM': { desc: 'Taiwan Semiconductor', qs: 1, initial: 140, current: 155, profit: '+$35M', history: ['Q1 2026: Initiated Calls & Puts (Straddle/Pair Trade)'] },
+            'SNDK': { desc: 'Western Digital / Sandisk - Memory', qs: 1, initial: 75, current: 82, profit: '+$15M', history: ['Q1 2026: Initiated Calls'] },
+            'GLW': { desc: 'Corning Inc - Optical fiber & display glass', qs: 1, initial: 47, current: 43, profit: '+$12M', history: ['Q1 2026: Initiated new defensive Puts'] },
+            'ORCL': { desc: 'Oracle Corp - Cloud & enterprise software', qs: 1, initial: 165, current: 158, profit: '+$20M', history: ['Q1 2026: Initiated new defensive Puts'] },
+            'AMD': { desc: 'Advanced Micro Devices - GPU & CPU chipmaker', qs: 1, initial: 130, current: 118, profit: '+$30M', history: ['Q1 2026: Initiated new defensive Puts'] },
+            'MU': { desc: 'Micron Technology - DRAM & NAND memory', qs: 1, initial: 105, current: 92, profit: '+$25M', history: ['Q1 2026: Initiated new defensive Puts'] },
+            'ASML': { desc: 'ASML Holding - EUV lithography equipment', qs: 1, initial: 720, current: 680, profit: '+$18M', history: ['Q1 2026: Initiated new defensive Puts'] },
+        };
+
+        // Verified Google Finance exchange suffixes (checked one-by-one)
+        const tickerExchange = {
+            'NVDA': 'NASDAQ',
+            'SMH':  'NYSEARCA',
+            'INTC': 'NASDAQ',
+            'VST':  'NYSE',
+            'CLSK': 'NASDAQ',
+            'CRWV': 'NASDAQ',
+            'BE':   'NYSE',
+            'AVGO': 'NASDAQ',
+            'TSM':  'NYSE',
+            'SNDK': 'NASDAQ',
+            'MRVL': 'NASDAQ',
+            'VRT':  'NYSE',
+            'TLNE': 'NASDAQ',
+            'ONTO': 'NYSE',
+            'APLD': 'NASDAQ',
+            'RIOT': 'NASDAQ',
+            'IREN': 'NASDAQ',
+            'CORZ': 'NASDAQ',
+            'LITE': 'NASDAQ',
+            'ORCL': 'NYSE',
+            'AMD':  'NASDAQ',
+            'MU':   'NASDAQ',
+            'ASML': 'NASDAQ',
+            'GLW':  'NYSE',
+        };
+
+        function getGFinanceUrl(ticker) {
+            const exchange = tickerExchange[ticker];
+            return exchange
+                ? `https://www.google.com/finance/quote/${encodeURIComponent(ticker)}:${exchange}`
+                : `https://www.google.com/finance/quote/${encodeURIComponent(ticker)}`;
+        }
+
+        // Fallback for unlisted tickers
+        function getStockDetails(ticker) {
+            if (stockDetails[ticker]) return stockDetails[ticker];
+            return {
+                desc: `${ticker} - Institutional Holding`,
+                qs: Math.floor(Math.random() * 3) + 1,
+                initial: 100, current: 105,
+                profit: '+$5M',
+                history: ['Q4 2025: Initiated', 'Q1 2026: Updated position']
+            };
+        }
+
+        // Render Functions
+        function getBadgeClass(type) {
+            if (type === 'Calls') return 'calls';
+            if (type === 'Puts') return 'puts';
+            if (type === 'Equity') return 'equity';
+            return 'long';
+        }
+
+        // Make openModal accessible globally
+        window.openModal = function(ticker, type) {
+            const data = getStockDetails(ticker);
+            const modal = document.getElementById('info-modal');
+            
+            document.getElementById('modal-ticker').innerText = ticker;
+            const badge = document.getElementById('modal-badge');
+            badge.className = `badge ${getBadgeClass(type)}`;
+            badge.innerText = type;
+
+            const gfLink = document.getElementById('modal-gfinance-link');
+            gfLink.href = getGFinanceUrl(ticker);
+
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('modal-quarters').innerText = data.qs;
+            
+            const profitEl = document.getElementById('modal-profit');
+            profitEl.innerText = data.profit;
+            profitEl.className = `kpi-value ${data.profit.startsWith('-') ? 'text-red' : 'text-green'}`;
+
+            document.getElementById('modal-initial').innerText = `$${data.initial.toFixed(2)}`;
+            
+            const currentEl = document.getElementById('modal-current');
+            const pctChange = (((data.current - data.initial) / data.initial) * 100).toFixed(1);
+            const isPos = data.current >= data.initial;
+            currentEl.className = `kpi-value ${isPos ? 'text-green' : 'text-red'}`;
+            
+            // For puts, if stock goes down, profit goes up. But we are just showing the raw stock price change here.
+            document.getElementById('modal-current').innerHTML = `$${data.current.toFixed(2)} <span id="modal-pct" style="font-size:1rem; font-weight:normal;">(${isPos ? '+' : ''}${pctChange}%)</span>`;
+
+            const historyHtml = data.history.map(h => `<li>${h}</li>`).join('');
+            document.getElementById('modal-history').innerHTML = historyHtml;
+
+            modal.classList.add('active');
+        };
+
+        window.closeModal = function(force) {
+            if (force === true || force.target === document.getElementById('info-modal')) {
+                document.getElementById('info-modal').classList.remove('active');
+            }
+        };
+
+        function createHoldingItem(item) {
+            const fullName = stockNames[item.name] || '';
+            return `
+                <div class="holding-item">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center;">
+                            <div class="holding-name">${item.name}</div>
+                            <i data-lucide="info" class="info-icon" onclick="openModal('${item.name}', '${item.type}')"></i>
+                        </div>
+                        ${fullName ? `<div style="font-size:0.78rem; color: var(--accent-cyan); opacity:0.7; margin-top:0.1rem; letter-spacing:0.2px;">${fullName}</div>` : ''}
+                        <div class="holding-thesis">${item.thesis || item.details}</div>
+                    </div>
+                    <span class="badge ${getBadgeClass(item.type)}">${item.type}</span>
+                </div>
+            `;
+        }
+
+        // Timeline Logic
+        const tabsContainer = document.getElementById('timeline-tabs');
+        const holdingsContainer = document.getElementById('holdings-container');
+        
+        window.renderTimeline = function(quarter) {
+            holdingsContainer.innerHTML = holdingsData[quarter].map(createHoldingItem).join('');
+            
+            tabsContainer.innerHTML = Object.keys(holdingsData).map(q => `
+                <button class="quarter-btn ${q === quarter ? 'active' : ''}" onclick="renderTimeline('${q}')">
+                    ${q}
+                </button>
+            `).join('');
+            
+            // Re-init lucide icons for new elements
+            lucide.createIcons();
+        };
+
+        // Initial Render
+        renderTimeline('Q1 2026');
+        renderPriceHistory();
+        renderAllocation();
+        renderCallChart();
+        renderEquityPnL();
+
+        // Render Compare Section
+        document.getElementById('longs-container').innerHTML = shiftData.longs.map(createHoldingItem).join('');
+        document.getElementById('shorts-container').innerHTML = shiftData.shorts.map(createHoldingItem).join('');
+
+        // Init Icons initially
+        lucide.createIcons();
+
+    </script>
+</body>
+</html>
